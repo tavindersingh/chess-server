@@ -4,7 +4,7 @@ import (
 	"tavinder/chess-server/internal/app/game"
 	"tavinder/chess-server/internal/app/match"
 	"tavinder/chess-server/internal/app/timer"
-	"tavinder/chess-server/internal/events"
+
 	ws "tavinder/chess-server/internal/websocket"
 
 	"github.com/charmbracelet/log"
@@ -13,11 +13,9 @@ import (
 )
 
 func main() {
-	eventBus := events.NewEventBus()
-
 	repository := timer.NewInMemoryTimerRepository()
-	timerManager := timer.NewTimerManager(repository, eventBus)
-	gameManager := game.NewGameManager(timerManager, eventBus)
+	timerManager := timer.NewTimerManager(repository)
+	gameManager := game.NewGameManager(timerManager)
 	matchManager := match.NewMatchManager(gameManager)
 	wsServer := ws.NewWebSocketServer(matchManager)
 

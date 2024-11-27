@@ -2,64 +2,40 @@ package timer
 
 import (
 	"sync"
-	"tavinder/chess-server/internal/events"
-	"tavinder/chess-server/internal/models"
 	"time"
 )
 
 type TimerManager struct {
-	repository TimerRepository
-	eventBus   *events.EventBus
+	Repository TimerRepository
 	mutex      sync.Mutex
 }
 
 func NewTimerManager(
 	repository TimerRepository,
-	eventBus *events.EventBus,
 ) *TimerManager {
 	return &TimerManager{
-		repository: repository,
-		eventBus:   eventBus,
+		Repository: repository,
 	}
 }
 
 func (tm *TimerManager) CreateGameTimers(
 	gameID string,
 	player1ID, player2ID string,
-	// player1Timeout, player2Timeout func(),
+	gameTimerUpdateCallback func(gameId string),
+	player1Timeout, player2Timeout func(),
 ) {
-	player1Timeout := func() {
-		tm.eventBus.Publish(events.Event{
-			Type: events.EventTimeout,
-			Payload: map[string]string{
-				"gameID":   gameID,
-				"playerID": player1ID,
-			},
-		})
-	}
-
-	player2Timeout := func() {
-		tm.eventBus.Publish(events.Event{
-			Type: events.EventTimeout,
-			Payload: map[string]string{
-				"gameID":   gameID,
-				"playerID": player2ID,
-			},
-		})
-	}
-
 	player1TimeUpdate := func(
 		gameId, playerId string,
 		remainingTime time.Duration,
 	) {
-		tm.EmitTimeUpdates(gameId)
+		gameTimerUpdateCallback(gameId)
 	}
 
 	player2TimeUpdate := func(
 		gameId, playerId string,
 		remainingTime time.Duration,
 	) {
-		tm.EmitTimeUpdates(gameId)
+		gameTimerUpdateCallback(gameId)
 	}
 
 	player1Timer := NewTimer(gameID,
@@ -82,7 +58,7 @@ func (tm *TimerManager) CreateGameTimers(
 		Player2Timer: player2Timer,
 	}
 
-	tm.repository.AddGameTimers(gameID, gameTimers)
+	tm.Repository.AddGameTimers(gameID, gameTimers)
 
 	gameTimers.Player1Timer.Start()
 }
@@ -91,7 +67,7 @@ func (tm *TimerManager) SwitchTurns(gameID, playerID string) {
 	tm.mutex.Lock()
 	defer tm.mutex.Unlock()
 
-	gameTimers, exists := tm.repository.GetGameTimers(gameID)
+	gameTimers, exists := tm.Repository.GetGameTimers(gameID)
 	if !exists {
 		return
 	}
@@ -109,34 +85,12 @@ func (tm *TimerManager) StopGameTimers(gameID string) {
 	tm.mutex.Lock()
 	defer tm.mutex.Unlock()
 
-	gameTimers, exists := tm.repository.GetGameTimers(gameID)
+	gameTimers, exists := tm.Repository.GetGameTimers(gameID)
 	if !exists {
 		return
 	}
 
 	gameTimers.Player1Timer.Stop()
 	gameTimers.Player2Timer.Stop()
-	tm.repository.RemoveGameTimers(gameID)
-}
-
-func (tm *TimerManager) EmitTimeUpdates(gameId string) {
-	timers, exists := tm.repository.GetGameTimers(gameId)
-
-	if !exists {
-		return
-	}
-
-	player1Id := timers.Player1Timer.PlayerId
-	player2Id := timers.Player2Timer.PlayerId
-
-	tm.eventBus.Publish(events.Event{
-		Type: events.EventTimerUpdate,
-		Payload: &models.TimerUpdatePayload{
-			gameId:          gameId,
-			player1Id:       player1Id,
-			player2Id:       player2Id,
-			player1TimeLeft: timers.Player1Timer.RemainingTime.Milliseconds(),
-			player2TimeLeft: timers.Player2Timer.RemainingTime.Seconds(),
-		},
-	})
+	tm.Repository.RemoveGameTimers(gameID)
 }

@@ -4,9 +4,8 @@ import (
 	"errors"
 	"sync"
 	"tavinder/chess-server/internal/app/timer"
-	"tavinder/chess-server/internal/events"
+	"tavinder/chess-server/internal/models"
 
-	"github.com/charmbracelet/log"
 	"github.com/gofiber/contrib/websocket"
 )
 
@@ -14,23 +13,16 @@ type GameManager struct {
 	Games map[string]*Game
 	mutex sync.RWMutex
 
-	timerService timer.TimerService
-	eventBus     *events.EventBus
-	wsNotifier   WebSocketNotifier
+	timerManager *timer.TimerManager
 }
 
 func NewGameManager(
-	timerService timer.TimerService,
-	eventBus *events.EventBus,
+	timerManager *timer.TimerManager,
 ) *GameManager {
 	gm := &GameManager{
 		Games:        make(map[string]*Game),
-		timerService: timerService,
-		eventBus:     eventBus,
+		timerManager: timerManager,
 	}
-
-	gm.eventBus.Subscribe(events.EventTimeout, gm.handleTimeout)
-	gm.eventBus.Subscribe(events.EventTimerUpdate, gm.handleTimerUpdate)
 
 	return gm
 }
@@ -58,16 +50,17 @@ func (gm *GameManager) AddGame(
 
 	gm.Games[gameId] = game
 
-	gm.timerService.CreateGameTimers(
+	gm.timerManager.CreateGameTimers(
 		gameId,
 		player1Id,
 		player2Id,
-		// func() {
-		// 	gm.EndGame(gameId, player1Id)
-		// },
-		// func() {
-		// 	gm.EndGame(gameId, player2Id)
-		// },
+		gm.EmitTimeUpdates,
+		func() {
+			gm.EndGame(gameId, player1Id)
+		},
+		func() {
+			gm.EndGame(gameId, player2Id)
+		},
 	)
 
 	return game, nil
@@ -93,61 +86,29 @@ func (gm *GameManager) EndGame(gameId, losingPlayerId string) {
 
 	delete(gm.Games, gameId)
 
-	gm.timerService.StopGameTimers(gameId)
+	gm.timerManager.StopGameTimers(gameId)
 }
 
-// func (gm *GameManager) NotifyPlayers(
-// 	gameID, playerID string,
-// 	remainingTime float64,
-// ) {
-// 	game, exists := gm.Games[gameID]
-// 	if !exists {
-// 		return
-// 	}
+func (gm *GameManager) EmitTimeUpdates(gameId string) {
+	timers, exists := gm.timerManager.Repository.GetGameTimers(gameId)
 
-// 	message := map[string]interface{}{
-// 		"event": "timer_update",
-// 		"data": map[string]interface{}{
-// 			"player_id": playerID,
-// 			"time":      remainingTime,
-// 		},
-// 	}
+	if !exists {
+		return
+	}
 
-// 	// Notify Player 1
-// 	if err := game.Player1Conn.WriteJSON(message); err != nil {
-// 		// handle error (e.g., log it)
-// 	}
+	player1Id := timers.Player1Timer.PlayerId
+	player2Id := timers.Player2Timer.PlayerId
 
-// 	// Notify Player 2
-// 	if err := game.Player2Conn.WriteJSON(message); err != nil {
-// 		// handle error (e.g., log it)
-// 	}
-// }
+	game := gm.Games[gameId]
 
-func (gm *GameManager) handleTimeout(event events.Event) {
-	log.Info("handleTimeout")
-	log.Info(event)
-	// payload := event.Payload.(map[string]interface{})
+	payload := &models.TimerUpdatePayload{
+		GameId:          gameId,
+		Player1Id:       player1Id,
+		Player2Id:       player2Id,
+		Player1TimeLeft: timers.Player1Timer.RemainingTime.Milliseconds(),
+		Player2TimeLeft: timers.Player2Timer.RemainingTime.Milliseconds(),
+	}
 
-	// gm.wsNotifier.NotifyAllPlayersByGame(
-	// 	payload["gameId"].(string),
-	// 	map[string]interface{}{
-	// 		"type":    "timer_update",
-	// 		"payload": payload,
-	// 	},
-	// )
-}
-
-func (gm *GameManager) handleTimerUpdate(event events.Event) {
-	log.Info("handle timer update")
-	log.Info(event)
-	payload := event.Payload
-
-	gm.wsNotifier.NotifyAllPlayersByGame(
-		payload["gameId"].(string),
-		map[string]interface{}{
-			"type":    "timer_update",
-			"payload": payload,
-		},
-	)
+	game.Player1Conn.WriteJSON(payload)
+	game.Player2Conn.WriteJSON(payload)
 }
