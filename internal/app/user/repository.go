@@ -26,6 +26,6 @@ func (ur *InMemoryUserRepository) CreateUser() (User, error) {
 		Id: "anon-" + uuid.NewString(),
 	}
 	ur.Users[user.Id] = *user
-	
+
 	return *user, nil
 }

@@ -38,22 +38,22 @@ func (mm *MatchManager) AddPlayerToQueue(playerId string, conn *websocket.Conn) 
 
 		if err != nil {
 			conn1.WriteJSON(map[string]interface{}{
-				"type":    "error",
+				"event":   "error",
 				"payload": "Failed to create game",
 			})
 			conn2.WriteJSON(map[string]interface{}{
-				"type":    "error",
+				"event":   "error",
 				"payload": "Failed to create game",
 			})
 			return
 		}
 
 		conn1.WriteJSON(map[string]interface{}{
-			"type":    "match_found",
+			"event":   "match_found",
 			"payload": newGame,
 		})
 		conn2.WriteJSON(map[string]interface{}{
-			"type":    "match_found",
+			"event":   "match_found",
 			"payload": newGame,
 		})
 	}
@@ -66,7 +66,7 @@ func (mm *MatchManager) NotifyAllPlayersByGame(
 	mm.Mutex.Lock()
 	defer mm.Mutex.Unlock()
 
-	game, exists := mm.GameManager.Games[gameId]
+	game, exists := mm.GameManager.GameRepository.GetGame(gameId)
 
 	if !exists {
 		return

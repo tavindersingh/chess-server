@@ -73,11 +73,11 @@ func (tm *TimerManager) SwitchTurns(gameID, playerID string) {
 	}
 
 	if gameTimers.Player1Timer.PlayerId == playerID {
-		gameTimers.Player2Timer.Pause()
-		gameTimers.Player1Timer.Start()
-	} else if gameTimers.Player2Timer.PlayerId == playerID {
 		gameTimers.Player1Timer.Pause()
 		gameTimers.Player2Timer.Start()
+	} else if gameTimers.Player2Timer.PlayerId == playerID {
+		gameTimers.Player2Timer.Pause()
+		gameTimers.Player1Timer.Start()
 	}
 }
 

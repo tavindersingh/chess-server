@@ -3,6 +3,7 @@ package websocket
 import (
 	"encoding/json"
 
+	"tavinder/chess-server/internal/app/game"
 	"tavinder/chess-server/internal/app/match"
 	"tavinder/chess-server/internal/models"
 
@@ -11,18 +12,23 @@ import (
 
 type WebSocketServer struct {
 	MatchManager *match.MatchManager
+	GameManager  *game.GameManager
 }
 
-func NewWebSocketServer(matchManager *match.MatchManager) *WebSocketServer {
+func NewWebSocketServer(
+	matchManager *match.MatchManager,
+	gameManager *game.GameManager,
+) *WebSocketServer {
 	return &WebSocketServer{
 		MatchManager: matchManager,
+		GameManager:  gameManager,
 	}
 }
 
 func (ws *WebSocketServer) HandleWebSocketConnection(conn *websocket.Conn) {
-	playerID := conn.Params("id")
+	playerId := conn.Params("id")
 
-	if playerID == "" {
+	if playerId == "" {
 		conn.WriteJSON(map[string]interface{}{
 			"success": false,
 			"error":   "player ID is required",
@@ -33,14 +39,14 @@ func (ws *WebSocketServer) HandleWebSocketConnection(conn *websocket.Conn) {
 
 	done := make(chan bool)
 	go func() {
-		ws.HandleWebSocketEvents(conn, playerID)
+		ws.HandleWebSocketEvents(conn, playerId)
 		done <- true
 	}()
 
 	<-done
 }
 
-func (ws *WebSocketServer) HandleWebSocketEvents(conn *websocket.Conn, playerID string) {
+func (ws *WebSocketServer) HandleWebSocketEvents(conn *websocket.Conn, playerId string) {
 	defer conn.Close()
 
 	for {
@@ -74,7 +80,9 @@ func (ws *WebSocketServer) HandleWebSocketEvents(conn *websocket.Conn, playerID 
 
 		switch event {
 		case "join_queue":
-			ws.MatchManager.AddPlayerToQueue(playerID, conn)
+			ws.MatchManager.AddPlayerToQueue(playerId, conn)
+		case "move":
+			ws.GameManager.MakeMove(playerId, message)
 		}
 	}
 }

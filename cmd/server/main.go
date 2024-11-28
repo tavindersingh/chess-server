@@ -16,11 +16,14 @@ import (
 )
 
 func main() {
+	log.SetLevel(log.DebugLevel)
+
 	repository := timer.NewInMemoryTimerRepository()
+	gameRepository := game.NewCacheGameRepository()
 	timerManager := timer.NewTimerManager(repository)
-	gameManager := game.NewGameManager(timerManager)
+	gameManager := game.NewGameManager(timerManager, gameRepository)
 	matchManager := match.NewMatchManager(gameManager)
-	wsServer := ws.NewWebSocketServer(matchManager)
+	wsServer := ws.NewWebSocketServer(matchManager, gameManager)
 
 	app := fiber.New()
 
