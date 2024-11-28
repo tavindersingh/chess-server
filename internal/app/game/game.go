@@ -7,10 +7,10 @@ import (
 )
 
 type Game struct {
-	GameId            string
-	Player1Id         string
-	Player2Id         string
-	CurrentPlayerId   string
+	GameId            string        `json:"gameId"`
+	Player1Id         string        `json:"player1Id"`
+	Player2Id         string        `json:"player2Id"`
+	CurrentPlayerId   string        `json:"currentPlayerId"`
 	StartTime         time.Time     `json:"startTime"`
 	TotalTimeEachSide time.Duration `json:"totalTimeEachSide"`
 	Player1TimeLeft   time.Duration `json:"player1TimeLeft"`

@@ -1,9 +1,12 @@
 package main
 
 import (
+	"tavinder/chess-server/internal/app/auth"
 	"tavinder/chess-server/internal/app/game"
 	"tavinder/chess-server/internal/app/match"
 	"tavinder/chess-server/internal/app/timer"
+	"tavinder/chess-server/internal/app/user"
+	"time"
 
 	ws "tavinder/chess-server/internal/websocket"
 
@@ -22,8 +25,6 @@ func main() {
 	app := fiber.New()
 
 	app.Use("/ws", func(c *fiber.Ctx) error {
-		// IsWebSocketUpgrade returns true if the client
-		// requested upgrade to the WebSocket protocol.
 		if websocket.IsWebSocketUpgrade(c) {
 			c.Locals("allowed", true)
 			return c.Next()
@@ -37,6 +38,25 @@ func main() {
 		return c.SendString("Hello, World!")
 	})
 
+	handleRoutes(app)
+
 	log.Info("Server is running on port 8000")
 	app.Listen(":8000")
+}
+
+func handleRoutes(app *fiber.App) {
+	var jwtManager = auth.NewJwtManager("secret", time.Hour*24*365)
+	var userRepository = user.NewInMemoryUserRepository()
+	var authService = auth.NewAuthService(jwtManager, userRepository)
+	var authHandler = auth.NewAuthHandler(authService)
+
+	var authMiddleware = auth.NewAuthMiddleware(jwtManager)
+
+	var userHandler = user.NewUserHandler(userRepository)
+
+	app.Post("/auth/login/anonymous", authHandler.AnonymousLogin)
+
+	usersGroup := app.Group("/users", authMiddleware.RequireAuth)
+
+	usersGroup.Get("/me", userHandler.CurrentUser)
 }

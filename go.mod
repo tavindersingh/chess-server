@@ -2,7 +2,10 @@ module tavinder/chess-server
 
 go 1.23.0
 
-require github.com/gofiber/fiber/v2 v2.52.5
+require (
+	github.com/gofiber/fiber/v2 v2.52.5
+	github.com/golang-jwt/jwt/v5 v5.2.1
+)
 
 require (
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
@@ -19,7 +22,7 @@ require (
 	github.com/charmbracelet/log v0.4.0
 	github.com/fasthttp/websocket v1.5.10 // indirect
 	github.com/gofiber/contrib/websocket v1.3.2
-	github.com/google/uuid v1.6.0 // indirect
+	github.com/google/uuid v1.6.0
 	github.com/klauspost/compress v1.17.11 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
